@@ -1,12 +1,7 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 import sqlite3
 
 app = Flask(__name__)
-
-# Serve the main HTML file
-@app.route('/')
-def home():
-    return render_template('index.html')
 
 # Database setup - connects to SQLite
 def get_db_connection():
@@ -14,23 +9,40 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.route('/add_item', methods=['POST'])
-def add_item():
-    data = request.json
-    name = data['name']
-    price = data['price']
+@app.route('/')
+def index():
+    # Main page for creating transactions
     conn = get_db_connection()
-    conn.execute('INSERT INTO items (name, price) VALUES (?, ?)', (name, price))
-    conn.commit()
+    items = conn.execute('SELECT * FROM items').fetchall()
     conn.close()
-    return jsonify({'status': 'success'})
+    return render_template('index.html', items=items)
 
-@app.route('/view_items', methods=['POST'])
-def view_items():
+@app.route('/add_item', methods=['GET', 'POST'])
+def add_item():
+    # Page for adding new items to the inventory
+    if request.method == 'POST':
+        name = request.form['name']
+        price = request.form['price']
+        conn = get_db_connection()
+        conn.execute('INSERT INTO items (name, price) VALUES (?, ?)', (name, price))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('index'))
+    return render_template('add_item.html')
+
+@app.route('/inventory')
+def inventory():
+    # Page to view current inventory levels
     conn = get_db_connection()
-    items = conn.execute('SELECT id, name, price FROM items').fetchall()
+    inventory_data = conn.execute('''
+        SELECT items.id, items.name, items.price, 
+               IFNULL(SUM(inventory.quantity), 0) AS quantity
+        FROM items
+        LEFT JOIN inventory ON items.id = inventory.item_id
+        GROUP BY items.id
+    ''').fetchall()
     conn.close()
-    return jsonify([{'id': item['id'], 'name': item['name'], 'price': item['price']} for item in items])
+    return render_template('inventory.html', inventory=inventory_data)
 
 @app.route('/add_inventory', methods=['POST'])
 def add_inventory():
