@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS System</title>
+    <script>
+        async function addItem() {
+            const name = document.getElementById("item_name").value;
+            const price = document.getElementById("item_price").value;
+            const response = await fetch('/add_item', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, price })
+            });
+            const data = await response.json();
+            if (data.status === 'success') alert("Item added successfully!");
+        }
+
+        async function viewItems() {
+            const response = await fetch('/view_items', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const items = await response.json();
+            const itemList = document.getElementById("item_list");
+            itemList.innerHTML = '';
+            items.forEach(item => {
+                const option = document.createElement("option");
+                option.value = item.id;
+                option.textContent = `${item.name} - $${item.price}`;
+                itemList.appendChild(option);
+            });
+        }
+
+        async function addInventory() {
+            const item_id = document.getElementById("item_list").value;
+            const quantity = document.getElementById("quantity").value;
+            const response = await fetch('/add_inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id, quantity })
+            });
+            const data = await response.json();
+            if (data.status === 'success') alert("Inventory added successfully!");
+        }
+
+        async function createTransaction() {
+            const items = [];
+            document.querySelectorAll(".transaction-item").forEach(item => {
+                items.push({ item_id: item.dataset.itemId, quantity: item.value });
+            });
+            const response = await fetch('/create_transaction', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items })
+            });
+            const data = await response.json();
+            if (data.status === 'success') alert("Transaction created! Total: $" + data.total);
+        }
+
+        function addItemToTransaction() {
+            const itemList = document.getElementById("item_list");
+            const itemId = itemList.value;
+            const itemName = itemList.options[itemList.selectedIndex].textContent;
+            const transactionList = document.getElementById("transaction_items");
+            const input = document.createElement("input");
+            input.classList.add("transaction-item");
+            input.dataset.itemId = itemId;
+            input.placeholder = "Quantity for " + itemName;
+            transactionList.appendChild(input);
+        }
+    </script>
+</head>
+<body onload="viewItems()">
+    <h1>POS System</h1>
+    
+    <h2>Add Item</h2>
+    <input type="text" id="item_name" placeholder="Item Name">
+    <input type="number" id="item_price" placeholder="Item Price">
+    <button onclick="addItem()">Add Item</button>
+
+    <h2>Inventory</h2>
+    <select id="item_list"></select>
+    <input type="number" id="quantity" placeholder="Quantity">
+    <button onclick="addInventory()">Add to Inventory</button>
+
+    <h2>Transaction</h2>
+    <div id="transaction_items"></div>
+    <button onclick="addItemToTransaction()">Add Item to Transaction</button>
+    <button onclick="createTransaction()">Create Transaction</button>
+</body>
+</html>
